@@ -4,7 +4,7 @@
 
 This kernel provides support for interactive Tensorflow, Pytorch integration in SageMaker Studio.
 
-See `sage_maker_magic/sage_maker_kernel/kernelmagics.py` for the definitions of all cell magics.
+See `sagemaker_magic/sagemaker_kernel/kernelmagics.py` for the definitions of all cell magics.
 
 + Distributed Pytorch in AWS Sagemaker Studio [Example Notebook](examples/PyTorch_Magic.ipynb)
 + Distributed Tensorflow in AWS Sagemaker Studio [Example Notebook](examples/TF_Magic.ipynb)
@@ -217,5 +217,5 @@ submit-distribution:
 list:
   --name_contains NAME_CONTAINS
   --max_result MAX_RESULT
-File:      sage_maker_kernel/kernelmagics.py
+File:      sagemaker_kernel/kernelmagics.py
 ```
