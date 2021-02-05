@@ -1,0 +1,20 @@
+{
+    "DomainName": "<Domain_Name>",
+    "VpcId": "<VPC>",
+    "SubnetIds": [
+        "<SubnetID>"
+    ],
+    "DefaultUserSettings": {
+        "ExecutionRole": "<SM_ROLE_ARN>",
+        "KernelGatewayAppSettings": {
+            "CustomImages": [
+                {
+                    "ImageName": "sagemaker-magic-cell",
+                    "AppImageConfigName": "smmagics"
+                }
+
+            ]
+        }
+    },
+    "AuthMode": "IAM"
+}

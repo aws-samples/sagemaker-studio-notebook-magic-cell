@@ -1,0 +1,16 @@
+{
+    "DomainId": NB_DOMAIN_ID,
+    "DefaultUserSettings": {
+        "KernelGatewayAppSettings": {
+            "DefaultResourceSpec": {
+                "InstanceType": "ml.t3.medium"
+            },
+            "CustomImages": [
+                {
+                    "ImageName": "sagemaker-magic-cell",
+                    "AppImageConfigName": "smmagics"
+                }
+            ]
+        }
+    }
+}

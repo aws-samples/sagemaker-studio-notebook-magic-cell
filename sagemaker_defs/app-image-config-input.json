@@ -1,0 +1,16 @@
+{
+    "AppImageConfigName": "smmagics",
+    "KernelGatewayImageConfig": {
+        "KernelSpecs": [
+            {
+                "Name": "sm",
+                "DisplayName": "SageMakerMagic"
+            }
+        ],
+        "FileSystemConfig": {
+            "MountPath": "/home/jovyan",
+            "DefaultUid": 1000,
+            "DefaultGid": 100
+        }
+    }
+}

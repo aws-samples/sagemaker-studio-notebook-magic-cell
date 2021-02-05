@@ -1,0 +1,12 @@
+{
+    "Description": "sagemaker-magic-cell",
+    "DisplayName": "sagemaker-magic-cell",
+    "ImageName": "sagemaker-magic-cell",
+    "RoleArn": "<SM_Role_ARN>",
+    "Tags": [
+        {
+            "Key": "MAINTAINER",
+            "Value": "AnalyticsEngineeering"
+        }
+    ]
+}
