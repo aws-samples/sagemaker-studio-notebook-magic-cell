@@ -32,4 +32,4 @@ RUN pip install \
 #RUN pip install jupyter_contrib_nbextensions
 RUN cd /usr/local/share/extensions/jupyter_ext && \
     python setup.py install && \
-    python -m sage_maker_kernel.install --sys-prefix
+    python -m sagemaker_kernel.install --sys-prefix

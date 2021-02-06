@@ -110,7 +110,7 @@ class KernelBase(IPythonKernel):
                            log_if_error="Failed to alias describe_training_job.")
 
     def _load_magics_extension(self):
-        register_magics_code = "%load_ext sage_maker_kernel.kernelmagics"
+        register_magics_code = "%load_ext sagemaker_kernel.kernelmagics"
         self._execute_cell(register_magics_code, True, False, shutdown_if_error=False,
                            log_if_error="Failed to load the SageMaker magics.")
 
