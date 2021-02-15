@@ -1,6 +1,5 @@
 # Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 # SPDX-License-Identifier: MIT-0
-
 from __future__ import print_function
 from IPython.core.magic import Magics, magics_class
 from IPython.core.magic import needs_local_scope, cell_magic, line_magic
@@ -11,12 +10,16 @@ import re
 import json
 
 ## Sage Maker
-
 from sagemaker import get_execution_role, Session
-from sagemaker.pytorch import PyTorch
-from sagemaker.tensorflow import TensorFlow
 from sagemaker import get_execution_role
 import boto3
+
+## Sage Maker Estimator
+from sagemaker.pytorch import PyTorch
+from sagemaker.tensorflow import TensorFlow
+
+## Sage Maker processing
+from sagemaker.spark.processing import PySparkProcessor
 
 
 def hyperparameters(string):
@@ -28,15 +31,18 @@ def metric_definitions(string):
         "Regex":re.findall(r".+[\,]\s*[Regex]+\s*:\s*(.+)'$", string)[0]
     })
 
-class CommonSagemakerMagics(Magics):
+def arguments(string):
+    return list(re.findall(r"([\w\-\_\.\/]+)", string))
+
+class CommonMagics(Magics):
     """
-        Common SageMaker magic class.
+    Common SageMaker magic class.
     """
     def __init__(self, shell, data=None):
-        super(CommonSagemakerMagics, self).__init__(shell)
+        super(CommonMagics, self).__init__(shell)
         self.args = {}
-        self.Estimator = None
         self.cell = None
+        self.RuntimeClass = None
         self.method_matcher = {
             'submit': self._submit,
             'status': self._status,
@@ -45,45 +51,61 @@ class CommonSagemakerMagics(Magics):
             'logs': self._logs
         }
 
-    def _get_latest_training_job_name(self):
-        return self.shell.user_ns.get('___{}_latest_training_job_name'.format(self.Estimator.__name__), None)
+    @staticmethod
+    def upload_content(content, path=None):
+        if path is None:
+            local_file = '/tmp/tmp-%s.py' % str(uuid.uuid4())
+        else:
+            local_file = path
+        with open(local_file, 'w') as f:
+            f.write(content)
+        return local_file
 
-    def _fit(self):
-        est = self.Estimator(**self.args)
+    def _get_latest_job_name(self):
+        return self.shell.user_ns.get('___{}_latest_job_name'.format(self.RuntimeClass.__name__), None)
+
+    def _process_latest(self, func):
+        if self._get_latest_job_name():
+            return func(self._get_latest_job_name())
+        else:
+            return "please submit at least one job"
+
+    def _clean_args(self):
+        filtered = {k: v for k, v in self.args.items() if v is not None}
+        self.args.clear()
+        self.args.update(filtered)
+
+
+class CommonEstimatorMagics(CommonMagics):
+    """
+        Common Estimator magic class.
+    """
+    def __init__(self, shell, data=None):
+        super(CommonEstimatorMagics, self).__init__(shell)
+
+
+    def _full_fill_args(self):
+        self.args['entry_point'] = self.args.get('entry_point', self.upload_content(self.cell))
+        self.args['role'] = self.args.get('role', get_execution_role())
+        self.args['estimator_name'] = self.args.get('estimator_name', '___{}_estimator'.format(self.RuntimeClass.__name__))
+
+    def _submit(self):
+        self._clean_args()
+        self._full_fill_args()
+        print('submit:\n', json.dumps(self.args, sort_keys=True, indent=4, default=str))
+        est = self.RuntimeClass(**self.args)
         channels = {
             "training": self.args.get('channel_training'),
             "testing": self.args.get('channel_testing')
         }
         est.fit(inputs=channels, wait=False)
-        self.shell.user_ns['___{}_latest_training_job_name'.format(self.Estimator.__name__)] = est.latest_training_job.name
+        self.shell.user_ns['___{}_latest_job_name'.format(self.RuntimeClass.__name__)] = est.latest_training_job.name
         self.shell.user_ns[self.args['estimator_name']] = est
 
-
-    def _full_fill_args(self):
-        filtered = {k: v for k, v in self.args.items() if v is not None}
-        self.args.clear()
-        self.args.update(filtered)
-        self.args['entry_point'] = self.args.get('entry_point', self.upload_content(self.cell))
-        self.args['role'] = self.args.get('role', get_execution_role())
-        self.args['estimator_name'] = self.args.get('estimator_name', '___{}_estimator'.format(self.Estimator.__name__))
-
-    def _submit(self):
-        self._full_fill_args()
-
-        print('submit:\n', json.dumps(self.args, sort_keys=True, indent=4, default=str))
-
-        self._fit()
-
         return {
-            '___{}_latest_training_job_name'.format(self.Estimator.__name__): self._get_latest_training_job_name(),
+            '___{}_latest_job_name'.format(self.RuntimeClass.__name__): self._get_latest_job_name(),
             'estimator_variable': self.args['estimator_name']
         }
-
-    def _process_latest(self, func):
-        if self._get_latest_training_job_name():
-            return func(self._get_latest_training_job_name())
-        else:
-            return "please submit at least one job"
 
     def _status(self):
         return self._process_latest(Session().describe_training_job)
@@ -98,24 +120,15 @@ class CommonSagemakerMagics(Magics):
     def _list(self):
         return boto3.client('sagemaker').list_training_jobs(NameContains=self.args.get('name_contains'),MaxResults=self.args.get('max_result'))
 
-    @staticmethod
-    def upload_content(content, path=None):
-        if path is None:
-            local_file = '/tmp/tmp-%s.py' % str(uuid.uuid4())
-        else:
-            local_file = path
-        with open(local_file, 'w') as f:
-            f.write(content)
-        return local_file
 
 @magics_class
-class TensorFlowMagic(CommonSagemakerMagics):
+class TensorFlowEstimatorMagics(CommonEstimatorMagics):
     """
             Tensorflow magic class.
     """
     def __init__(self, shell, data=None):
-        super(TensorFlowMagic, self).__init__(shell)
-        self.Estimator = TensorFlow
+        super(TensorFlowEstimatorMagics, self).__init__(shell)
+        self.RuntimeClass = TensorFlow
 
 
     def tf_distribution(self, choise):
@@ -174,13 +187,13 @@ class TensorFlowMagic(CommonSagemakerMagics):
         print(json.dumps(self.method_matcher[self.args.pop('method')](), sort_keys=True, indent=4, default=str))
 
 @magics_class
-class PyTorchMagic(CommonSagemakerMagics):
+class PyTorchEstimatorMagics(CommonEstimatorMagics):
     """
         PyTorch magic class.
     """
     def __init__(self, shell, data=None):
-        super(PyTorchMagic, self).__init__(shell)
-        self.Estimator = PyTorch
+        super(PyTorchEstimatorMagics, self).__init__(shell)
+        self.RuntimeClass = PyTorch
 
     @magic_arguments()
     @argument_group(title='methods', description=None)
@@ -219,6 +232,87 @@ class PyTorchMagic(CommonSagemakerMagics):
         print(json.dumps(self.method_matcher[self.args.pop('method')](), sort_keys=True, indent=4, default=str))
 
 
+class CommonProcessorMagics(CommonMagics):
+    """
+    Common Processor magic class.
+    """
+    def __init__(self, shell, data=None):
+        super(CommonProcessorMagics, self).__init__(shell)
+
+    def _full_fill_args(self):
+        self.args['submit_app'] = self.args.get('submit_app', self.upload_content(self.cell))
+        self.args['role'] = self.args.get('role', get_execution_role())
+        self.args['wait'] = self.args.get('logs', None)
+        processor_args = {k: v for k, v in self.args.items() if k in ['role', 'instance_type', 'instance_count', 'framework_version', 'py_version', 'container_version', 'image_uri', 'volume_size_in_gb', 'volume_kms_key', 'output_kms_key', 'max_runtime_in_seconds', 'base_job_name', 'sagemaker_session', 'env', 'tags', 'network_config']}
+        run_args = {k: v for k, v in self.args.items() if k in ['submit_app', 'submit_py_files', 'submit_jars', 'submit_files', 'inputs', 'outputs', 'arguments', 'wait', 'logs', 'job_name', 'experiment_config', 'configuration', 'spark_event_logs_s3_uri', 'kms_key']}
+        return processor_args, run_args
+
+    def _submit(self):
+        self._clean_args()
+        processor_args, run_args = self._full_fill_args()
+        print('submit:\n', json.dumps(self.args, sort_keys=True, indent=4, default=str))
+        processor = self.RuntimeClass(**processor_args)
+        processor.run(**run_args)
+        self.shell.user_ns['___{}_latest_job_name'.format(self.RuntimeClass.__name__)] = processor._current_job_name
+        return {
+            '___{}_latest_job_name'.format(self.RuntimeClass.__name__): self._get_latest_job_name()
+        }
+
+    def _status(self):
+        return self._process_latest(Session().describe_processing_job)
+
+    def _logs(self):
+        return "There are two options for provide processing logs --spark_event_logs_s3_uri and --logs"
+
+    def _delete(self):
+        self._process_latest(Session().stop_processing_job)
+        return self._process_latest(Session().describe_processing_job)
+
+    def _list(self):
+        return boto3.client('sagemaker').list_processing_jobs(NameContains=self.args.get('name_contains'),MaxResults=self.args.get('max_result'))
+
+
+@magics_class
+class PySparkProcessorMagics(CommonProcessorMagics):
+    """
+    PySpark magic class
+    """
+    def __init__(self, shell, data=None):
+        super(PySparkProcessorMagics, self).__init__(shell)
+        self.RuntimeClass = PySparkProcessor
+
+    @magic_arguments()
+    @argument('method', type=str, choices=['submit', 'list', 'status', 'delete'])
+    @argument_group(title='processor', description=None)
+    @argument('--base_job_name', type=str, help='Prefix for processing name. If not specified, the processor generates a default job name, based on the training image name and current timestamp.')
+    @argument('--submit_app', type=str, help='Path (local or S3) to Python file to submit to Spark as the primary application')
+    @argument('--framework_version', type=str, help='The version of SageMaker PySpark.', default='2.4')
+    @argument('--instance_type', type=str, help='Type of EC2 instance to use for processing, for example, ‘ml.c4.xlarge’.', default='ml.c4.xlarge')
+    @argument('--instance_count', type=int, help='Number of Amazon EC2 instances to use for processing.', default=1)
+    @argument('--max_runtime_in_seconds', type=int, help=' Timeout in seconds. After this amount of time Amazon SageMaker terminates the job regardless of its current status.', default=1200)
+    @argument('--submit_py_files', type=str, nargs='*', help='You can specify any python dependencies or files that your script depends on ')
+    @argument('--submit_jars', type=str, nargs='*', help='You can specify any jar dependencies or files that your script depends on ')
+    @argument('--submit_files', type=str, nargs='*', help='List of .zip, .egg, or .py files to place on the PYTHONPATH for Python apps.')
+    @argument('--arguments', type=arguments, help='A list of string arguments to be passed to a processing job', metavar="\'--foo bar --baz 123\'")
+    @argument('--spark_event_logs_s3_uri', type=str, help='S3 path where spark application events will be published to.')
+    @argument('--logs', type=bool, help='Whether to show the logs produced by the job.', default=False, nargs='?', const=True)
+    @argument_group(title='list', description=None)
+    @argument('--name_contains', type=str, help='', default='spark')
+    @argument('--max_result', type=str, help='', default=10)
+    @cell_magic
+    @line_magic
+    @needs_local_scope
+    def pyspark(self, line, cell="", local_ns=None):
+        """
+        Pyspark processor magic command
+        """
+        self.cell = cell
+        self.args = vars(parse_argstring(self.pyspark, line))
+
+        print(json.dumps(self.method_matcher[self.args.pop('method')](), sort_keys=True, indent=4, default=str))
+
+
 def load_ipython_extension(ipython):
-    ipython.register_magics(TensorFlowMagic)
-    ipython.register_magics(PyTorchMagic)
+    ipython.register_magics(TensorFlowEstimatorMagics)
+    ipython.register_magics(PyTorchEstimatorMagics)
+    ipython.register_magics(PySparkProcessorMagics)

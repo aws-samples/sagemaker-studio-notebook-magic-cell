@@ -1,12 +1,85 @@
-## SageMaker custom studio image providing a magic cell for Tensorflow and Pytorch training for a simplified experience in a notebook.
+# SageMaker custom studio image providing magic cells for a simplified experience in a notebook.
 
-### Overview
 
-This solution provides a magic cell for a Jupyter Notebook to simplify the SageMaker training function by customizing a kernel and using Bring-Your-Own Image in SageMaker Studio.
+## Overview
+
+This solution provides a magic cell for a Jupyter Notebook to simplify the SageMaker training and SageMaker processing function by customizing a kernel and using Bring-Your-Own Image in SageMaker Studio. This solution was built in collaboration with Leo Blokhin (lblokhin@provectus.com
+) from Provectus.
 
 Look at the ./examples folder for Notebook examples for Tensorflow and Pytorch for MNIST training job.
 
-### Building the image
+Currently the functions supported are the following.
+
+# Pytorch magic command.
+```
+  %pytorch [--estimator_name ESTIMATOR_NAME] [--entry_point ENTRY_POINT]
+               [--source_dir SOURCE_DIR] [--role ROLE]
+               [--framework_version FRAMEWORK_VERSION]
+               [--py_version PY_VERSION] [--instance_type INSTANCE_TYPE]
+               [--instance_count INSTANCE_COUNT] [--output_path OUTPUT_PATH]
+               [--hyperparameters FOO:1,BAR:0.555,BAZ:ABC | 'FOO : 1, BAR : 0.555, BAZ : ABC']
+               [--channel_training CHANNEL_TRAINING]
+               [--channel_testing CHANNEL_TESTING]
+               [--use_spot_instances [USE_SPOT_INSTANCES]]
+               [--max_wait MAX_WAIT]
+               [--enable_sagemaker_metrics [ENABLE_SAGEMAKER_METRICS]]
+               [--metric_definitions ['Name: loss, Regex: Loss = .*?);' ['Name: loss, Regex: Loss = (.*?;' ...]]]
+               [--name_contains NAME_CONTAINS] [--max_result MAX_RESULT]
+               {submit,list,status,logs,delete}
+```
+
+
+# Tensorflow magic command.
+```
+  %tfjob [--estimator_name ESTIMATOR_NAME] [--entry_point ENTRY_POINT]
+             [--source_dir SOURCE_DIR] [--role ROLE]
+             [--framework_version FRAMEWORK_VERSION] [--py_version PY_VERSION]
+             [--instance_type INSTANCE_TYPE] [--instance_count INSTANCE_COUNT]
+             [--output_path OUTPUT_PATH]
+             [--hyperparameters FOO:1,BAR:0.555,BAZ:ABC | 'FOO : 1, BAR : 0.555, BAZ : ABC']
+             [--channel_training CHANNEL_TRAINING]
+             [--channel_testing CHANNEL_TESTING]
+             [--use_spot_instances [USE_SPOT_INSTANCES]] [--max_wait MAX_WAIT]
+             [--enable_sagemaker_metrics [ENABLE_SAGEMAKER_METRICS]]
+             [--metric_definitions ['Name: ganloss, Regex: GAN_loss=.*?);' ['Name: ganloss, Regex: GAN_loss=(.*?;' ...]]]
+             [--distribution {parameter_server,horovod}]
+             [--mpi_processes_per_host MPI_PROCESSES_PER_HOST]
+             [--mpi_custom_mpi_options MPI_CUSTOM_MPI_OPTIONS]
+             [--name_contains NAME_CONTAINS] [--max_result MAX_RESULT]
+             {submit,list,status,logs,delete}
+```
+
+# Pyspark processor magic command
+```
+  %pyspark [--base_job_name BASE_JOB_NAME] [--submit_app SUBMIT_APP]
+               [--framework_version FRAMEWORK_VERSION]
+               [--instance_type INSTANCE_TYPE]
+               [--instance_count INSTANCE_COUNT]
+               [--max_runtime_in_seconds MAX_RUNTIME_IN_SECONDS]
+               [--submit_py_files [SUBMIT_PY_FILES [SUBMIT_PY_FILES ...]]]
+               [--submit_jars [SUBMIT_JARS [SUBMIT_JARS ...]]]
+               [--submit_files [SUBMIT_FILES [SUBMIT_FILES ...]]]
+               [--arguments '--foo bar --baz 123']
+               [--spark_event_logs_s3_uri SPARK_EVENT_LOGS_S3_URI]
+               [--logs [LOGS]] [--name_contains NAME_CONTAINS]
+               [--max_result MAX_RESULT]
+               {submit,list,status,delete}
+```
+
+
+
+
+# Building the image
+
+You can follow the instructions below or run the `Makefile` by modifying the environment variables and running one of the following command.
+```
+make login
+make build
+make push
+make create-version
+make all 
+```
+
 
 Build the Docker image and push to Amazon ECR.
 ```

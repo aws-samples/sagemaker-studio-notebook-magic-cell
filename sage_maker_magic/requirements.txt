@@ -1,0 +1,6 @@
+jupyter_client
+IPython
+ipykernel
+boto3>=1,<2
+sagemaker>=2,<3
+pandas

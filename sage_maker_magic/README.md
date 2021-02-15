@@ -4,11 +4,12 @@
 
 This kernel provides support for interactive Tensorflow, Pytorch integration in SageMaker Studio.
 
-See `sagemaker_magic/sagemaker_kernel/kernelmagics.py` for the definitions of all cell magics.
+See `sage_maker_magic/sage_maker_kernel/kernelmagics.py` for the definitions of all cell magics.
 
 + Distributed Pytorch in AWS Sagemaker Studio [Example Notebook](examples/PyTorch_Magic.ipynb)
 + Distributed Tensorflow in AWS Sagemaker Studio [Example Notebook](examples/TF_Magic.ipynb)
 + SageMaker Python SDK, boto3, AWS CLI examples [Example Notebook](examples/SDK_sm_boto3_AWS_CLI.ipynb)
++ PySpark Processing in AWS Sagemaker Studio [Example Notebook](examples/Spark_Magic.ipynb)
 
 
 ### %%pytorch?
@@ -217,5 +218,69 @@ submit-distribution:
 list:
   --name_contains NAME_CONTAINS
   --max_result MAX_RESULT
-File:      sagemaker_kernel/kernelmagics.py
+File:      sage_maker_kernel/kernelmagics.py
+```
+### %%pyspark?
+```
+Docstring:
+::
+
+  %pyspark [--base_job_name BASE_JOB_NAME] [--submit_app SUBMIT_APP]
+               [--framework_version FRAMEWORK_VERSION]
+               [--instance_type INSTANCE_TYPE]
+               [--instance_count INSTANCE_COUNT]
+               [--max_runtime_in_seconds MAX_RUNTIME_IN_SECONDS]
+               [--submit_py_files [SUBMIT_PY_FILES [SUBMIT_PY_FILES ...]]]
+               [--submit_jars [SUBMIT_JARS [SUBMIT_JARS ...]]]
+               [--submit_files [SUBMIT_FILES [SUBMIT_FILES ...]]]
+               [--arguments '--foo bar --baz 123']
+               [--spark_event_logs_s3_uri SPARK_EVENT_LOGS_S3_URI]
+               [--logs [LOGS]] [--name_contains NAME_CONTAINS]
+               [--max_result MAX_RESULT]
+               {submit,list,status,delete}
+
+Pyspark processor magic command
+
+positional arguments:
+  {submit,list,status,delete}
+
+processor:
+  --base_job_name BASE_JOB_NAME
+                        Prefix for processing name. If not specified, the
+                        processor generates a default job name, based on the
+                        training image name and current timestamp.
+  --submit_app SUBMIT_APP
+                        Path (local or S3) to Python file to submit to Spark
+                        as the primary application
+  --framework_version FRAMEWORK_VERSION
+                        The version of SageMaker PySpark.
+  --instance_type INSTANCE_TYPE
+                        Type of EC2 instance to use for processing, for
+                        example, ‘ml.c4.xlarge’.
+  --instance_count INSTANCE_COUNT
+                        Number of Amazon EC2 instances to use for processing.
+  --max_runtime_in_seconds MAX_RUNTIME_IN_SECONDS
+                        Timeout in seconds. After this amount of time Amazon
+                        SageMaker terminates the job regardless of its current
+                        status.
+  --submit_py_files <[SUBMIT_PY_FILES [SUBMIT_PY_FILES ...]]>
+                        You can specify any python dependencies or files that
+                        your script depends on
+  --submit_jars <[SUBMIT_JARS [SUBMIT_JARS ...]]>
+                        You can specify any jar dependencies or files that
+                        your script depends on
+  --submit_files <[SUBMIT_FILES [SUBMIT_FILES ...]]>
+                        List of .zip, .egg, or .py files to place on the
+                        PYTHONPATH for Python apps.
+  --arguments <'--foo bar --baz 123'>
+                        A list of string arguments to be passed to a
+                        processing job
+  --spark_event_logs_s3_uri SPARK_EVENT_LOGS_S3_URI
+                        S3 path where spark application events will be
+                        published to.
+  --logs <[LOGS]>       Whether to show the logs produced by the job.
+
+list:
+  --name_contains NAME_CONTAINS
+  --max_result MAX_RESULT
 ```
