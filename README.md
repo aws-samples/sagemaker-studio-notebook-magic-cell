@@ -135,7 +135,7 @@ If you have an existing Domain, you can also use the `update-domain`
 
 ```
 aws --region ${REGION} sagemaker update-domain --cli-input-json file://update-domain-input.json
-
+```
 ## Security
 
 See [CONTRIBUTING](CONTRIBUTING.md#security-issue-notifications) for more information.
