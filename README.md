@@ -25,7 +25,7 @@ Currently the functions supported are the following.
                [--enable_sagemaker_metrics [ENABLE_SAGEMAKER_METRICS]]
                [--metric_definitions ['Name: loss, Regex: Loss = .*?);' ['Name: loss, Regex: Loss = (.*?;' ...]]]
                [--name_contains NAME_CONTAINS] [--max_result MAX_RESULT]
-               {submit,list,status,logs,delete}
+               {submit,list,status,logs,delete,show_defaults}
 ```
 
 
@@ -46,7 +46,7 @@ Currently the functions supported are the following.
              [--mpi_processes_per_host MPI_PROCESSES_PER_HOST]
              [--mpi_custom_mpi_options MPI_CUSTOM_MPI_OPTIONS]
              [--name_contains NAME_CONTAINS] [--max_result MAX_RESULT]
-             {submit,list,status,logs,delete}
+             {submit,list,status,logs,delete,show_defaults}
 ```
 
 # Pyspark processor magic command
@@ -63,7 +63,7 @@ Currently the functions supported are the following.
                [--spark_event_logs_s3_uri SPARK_EVENT_LOGS_S3_URI]
                [--logs [LOGS]] [--name_contains NAME_CONTAINS]
                [--max_result MAX_RESULT]
-               {submit,list,status,delete}
+               {submit,list,status,delete,show_defaults}
 ```
 
 

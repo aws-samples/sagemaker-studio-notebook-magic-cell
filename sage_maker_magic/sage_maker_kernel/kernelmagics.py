@@ -8,10 +8,12 @@ from IPython.core.magic_arguments import argument, magic_arguments, parse_argstr
 import uuid
 import re
 import json
+import os
+
+from pyhocon import ConfigFactory, ConfigTree
 
 ## Sage Maker
 from sagemaker import get_execution_role, Session
-from sagemaker import get_execution_role
 import boto3
 
 ## Sage Maker Estimator
@@ -48,8 +50,13 @@ class CommonMagics(Magics):
             'status': self._status,
             'delete': self._delete,
             'list': self._list,
-            'logs': self._logs
+            'logs': self._logs,
+            'show_defaults': self._show_defaults
         }
+
+    def _get_config(self):
+        default_config_path = os.environ.get('DEFAULT_SM_CONFIG_PATH')
+        return ConfigFactory.parse_file(default_config_path)
 
     @staticmethod
     def upload_content(content, path=None):
@@ -75,6 +82,9 @@ class CommonMagics(Magics):
         self.args.clear()
         self.args.update(filtered)
 
+    def _show_defaults(self):
+        print('defaults:\n', json.dumps(self._get_config(), sort_keys=True, indent=4, default=str))
+
 
 class CommonEstimatorMagics(CommonMagics):
     """
@@ -84,10 +94,15 @@ class CommonEstimatorMagics(CommonMagics):
         super(CommonEstimatorMagics, self).__init__(shell)
 
 
+    def _get_config(self):
+        conf = super(CommonEstimatorMagics, self)._get_config()
+        return conf.get_config('estimator')
+
     def _full_fill_args(self):
         self.args['entry_point'] = self.args.get('entry_point', self.upload_content(self.cell))
         self.args['role'] = self.args.get('role', get_execution_role())
         self.args['estimator_name'] = self.args.get('estimator_name', '___{}_estimator'.format(self.RuntimeClass.__name__))
+        self.args = ConfigFactory.from_dict(self.args).with_fallback(self._get_config())
 
     def _submit(self):
         self._clean_args()
@@ -130,6 +145,9 @@ class TensorFlowEstimatorMagics(CommonEstimatorMagics):
         super(TensorFlowEstimatorMagics, self).__init__(shell)
         self.RuntimeClass = TensorFlow
 
+    def _get_config(self):
+        conf = super(TensorFlowEstimatorMagics, self)._get_config()
+        return conf.get_config('tfjob')
 
     def tf_distribution(self, choise):
         distribution = {
@@ -147,25 +165,25 @@ class TensorFlowEstimatorMagics(CommonEstimatorMagics):
 
     @magic_arguments()
     @argument_group(title='methods', description=None)
-    @argument('method', type=str, choices=['submit', 'list', 'status', 'logs', 'delete'])
+    @argument('method', type=str, choices=['submit', 'list', 'status', 'logs', 'delete', 'show_defaults'])
     @argument_group(title='submit', description=None)
     @argument('--estimator_name', type=str, help='estimator shell variable name')
     @argument('--entry_point', type=str, help='notebook local code file')
     @argument('--source_dir', type=str, help='notebook local code src, may contain requirements.txt')
     @argument('--role', type=str, help='An AWS IAM role (either name or full ARN). The Amazon SageMaker training jobs and APIs that create Amazon SageMaker endpoints use this role to access training data and model artifacts. After the endpoint is created, the inference code might use the IAM role, if it needs to access an AWS resource.')
-    @argument('--framework_version', type=str, help='TensorFlow version', default='2.3.0')
-    @argument('--py_version', type=str, help='Python version', default='py37')
-    @argument('--instance_type', type=str, help='Type of EC2 instance to use for training, for example, ‘ml.c4.xlarge’.', default='ml.c4.xlarge')
-    @argument('--instance_count', type=int, help='Number of Amazon EC2 instances to use for training.', default=1)
+    @argument('--framework_version', type=str, help='TensorFlow version')
+    @argument('--py_version', type=str, help='Python version')
+    @argument('--instance_type', type=str, help='Type of EC2 instance to use for training, for example, ‘ml.c4.xlarge’.')
+    @argument('--instance_count', type=int, help='Number of Amazon EC2 instances to use for training.')
     @argument('--output_path', type=str, help='S3 location for saving the training result (model artifacts and output files). If not specified, results are stored to a default bucket. If the bucket with the specific name does not exist, the estimator creates the bucket during the fit() method execution.')
     @argument('--hyperparameters', type=hyperparameters, help='Hyperparameters are passed to your script as arguments and can be retrieved with an argparse.', metavar='FOO:1,BAR:0.555,BAZ:ABC | \'FOO : 1, BAR : 0.555, BAZ : ABC\'')
     @argument('--channel_training', type=str, help='A string that represents the path to the directory that contains the input data for the training channel. ')
     @argument('--channel_testing', type=str, help='A string that represents the path to the directory that contains the input data for the testing channel. ')
     @argument_group(title='submit-spot', description=None)
-    @argument('--use_spot_instances', type=bool, help='Specifies whether to use SageMaker Managed Spot instances for training. If enabled then the max_wait arg should also be set. More information: https://docs.aws.amazon.com/sagemaker/latest/dg/model-managed-spot-training.html ', default=False, nargs='?', const=True)
+    @argument('--use_spot_instances', type=bool, help='Specifies whether to use SageMaker Managed Spot instances for training. If enabled then the max_wait arg should also be set. More information: https://docs.aws.amazon.com/sagemaker/latest/dg/model-managed-spot-training.html ', nargs='?', const=True)
     @argument('--max_wait', type=int, help='Timeout in seconds waiting for spot training instances (default: None). After this amount of time Amazon SageMaker will stop waiting for Spot instances to become available (default: None).')
     @argument_group(title='submit-metrics', description=None)
-    @argument('--enable_sagemaker_metrics', type=bool, help='Enables SageMaker Metrics Time Series. For more information see: https://docs.aws.amazon.com/sagemaker/latest/dg/API_AlgorithmSpecification.html# SageMaker-Type-AlgorithmSpecification-EnableSageMakerMetricsTimeSeries ', default=False, nargs='?', const=True)
+    @argument('--enable_sagemaker_metrics', type=bool, help='Enables SageMaker Metrics Time Series. For more information see: https://docs.aws.amazon.com/sagemaker/latest/dg/API_AlgorithmSpecification.html# SageMaker-Type-AlgorithmSpecification-EnableSageMakerMetricsTimeSeries ', nargs='?', const=True)
     @argument('--metric_definitions', type=metric_definitions, nargs='*', help='A list of dictionaries that defines the metric(s) used to evaluate the training jobs. Each dictionary contains two keys: ‘Name’ for the name of the metric, and ‘Regex’ for the regular expression used to extract the metric from the logs. This should be defined only for jobs that don’t use an Amazon algorithm.', metavar="\'Name: ganloss, Regex: GAN_loss=(.*?);\'")
     @argument_group(title='submit-distribution', description=None)
     @argument('--distribution', type=str, choices=['parameter_server', 'horovod'], help='To run your training job with multiple instances in a distributed fashion, set instance_count to a number larger than 1. We support two different types of distributed training, parameter server and Horovod. The distribution parameter is used to configure which distributed training strategy to use.')
@@ -195,27 +213,31 @@ class PyTorchEstimatorMagics(CommonEstimatorMagics):
         super(PyTorchEstimatorMagics, self).__init__(shell)
         self.RuntimeClass = PyTorch
 
+    def _get_config(self):
+        conf = super(PyTorchEstimatorMagics, self)._get_config()
+        return conf.get_config('pytorch')
+
     @magic_arguments()
     @argument_group(title='methods', description=None)
-    @argument('method', type=str, choices=['submit', 'list', 'status', 'logs', 'delete'])
+    @argument('method', type=str, choices=['submit', 'list', 'status', 'logs', 'delete', 'show_defaults'])
     @argument_group(title='submit', description=None)
     @argument('--estimator_name', type=str, help='estimator shell variable name')
     @argument('--entry_point', type=str, help='notebook local code file')
     @argument('--source_dir', type=str, help='notebook local code src, may contain requirements.txt')
     @argument('--role', type=str, help='An AWS IAM role (either name or full ARN). The Amazon SageMaker training jobs and APIs that create Amazon SageMaker endpoints use this role to access training data and model artifacts. After the endpoint is created, the inference code might use the IAM role, if it needs to access an AWS resource.')
-    @argument('--framework_version', type=str, help='PyTorch version', default='1.5.0')
-    @argument('--py_version', type=str, help='Python version', default='py3')
-    @argument('--instance_type', type=str, help='Type of EC2 instance to use for training, for example, ‘ml.c4.xlarge’.', default='ml.c4.xlarge')
-    @argument('--instance_count', type=int, help='Number of Amazon EC2 instances to use for training.', default=1)
+    @argument('--framework_version', type=str, help='PyTorch version')
+    @argument('--py_version', type=str, help='Python version')
+    @argument('--instance_type', type=str, help='Type of EC2 instance to use for training, for example, ‘ml.c4.xlarge’.')
+    @argument('--instance_count', type=int, help='Number of Amazon EC2 instances to use for training.')
     @argument('--output_path', type=str, help='S3 location for saving the training result (model artifacts and output files). If not specified, results are stored to a default bucket. If the bucket with the specific name does not exist, the estimator creates the bucket during the fit() method execution.')
     @argument('--hyperparameters', type=hyperparameters, help='Hyperparameters are passed to your script as arguments and can be retrieved with an argparse.', metavar='FOO:1,BAR:0.555,BAZ:ABC | \'FOO : 1, BAR : 0.555, BAZ : ABC\'')
     @argument('--channel_training', type=str, help='A string that represents the path to the directory that contains the input data for the training channel. ')
     @argument('--channel_testing', type=str, help='A string that represents the path to the directory that contains the input data for the testing channel. ')
     @argument_group(title='submit-spot', description=None)
-    @argument('--use_spot_instances', type=bool, help='Specifies whether to use SageMaker Managed Spot instances for training. If enabled then the max_wait arg should also be set. More information: https://docs.aws.amazon.com/sagemaker/latest/dg/model-managed-spot-training.html ', default=False, nargs='?', const=True)
+    @argument('--use_spot_instances', type=bool, help='Specifies whether to use SageMaker Managed Spot instances for training. If enabled then the max_wait arg should also be set. More information: https://docs.aws.amazon.com/sagemaker/latest/dg/model-managed-spot-training.html ', nargs='?', const=True)
     @argument('--max_wait', type=int, help='Timeout in seconds waiting for spot training instances (default: None). After this amount of time Amazon SageMaker will stop waiting for Spot instances to become available (default: None).')
     @argument_group(title='submit-metrics', description=None)
-    @argument('--enable_sagemaker_metrics', type=bool, help='Enables SageMaker Metrics Time Series. For more information see: https://docs.aws.amazon.com/sagemaker/latest/dg/API_AlgorithmSpecification.html# SageMaker-Type-AlgorithmSpecification-EnableSageMakerMetricsTimeSeries ', default=False, nargs='?', const=True)
+    @argument('--enable_sagemaker_metrics', type=bool, help='Enables SageMaker Metrics Time Series. For more information see: https://docs.aws.amazon.com/sagemaker/latest/dg/API_AlgorithmSpecification.html# SageMaker-Type-AlgorithmSpecification-EnableSageMakerMetricsTimeSeries ', nargs='?', const=True)
     @argument('--metric_definitions', type=metric_definitions, nargs='*', help='A list of dictionaries that defines the metric(s) used to evaluate the training jobs. Each dictionary contains two keys: ‘Name’ for the name of the metric, and ‘Regex’ for the regular expression used to extract the metric from the logs. This should be defined only for jobs that don’t use an Amazon algorithm.', metavar="\'Name: loss, Regex: Loss = (.*?);\'")
     @argument_group(title='list', description=None)
     @argument('--name_contains', type=str, help='', default='pytorch')
@@ -239,10 +261,16 @@ class CommonProcessorMagics(CommonMagics):
     def __init__(self, shell, data=None):
         super(CommonProcessorMagics, self).__init__(shell)
 
+    def _get_config(self):
+        conf = super(CommonProcessorMagics, self)._get_config()
+        return conf.get_config('processor')
+
     def _full_fill_args(self):
         self.args['submit_app'] = self.args.get('submit_app', self.upload_content(self.cell))
         self.args['role'] = self.args.get('role', get_execution_role())
         self.args['wait'] = self.args.get('logs', None)
+        self.args = ConfigFactory.from_dict(self.args).with_fallback(self._get_config())
+
         processor_args = {k: v for k, v in self.args.items() if k in ['role', 'instance_type', 'instance_count', 'framework_version', 'py_version', 'container_version', 'image_uri', 'volume_size_in_gb', 'volume_kms_key', 'output_kms_key', 'max_runtime_in_seconds', 'base_job_name', 'sagemaker_session', 'env', 'tags', 'network_config']}
         run_args = {k: v for k, v in self.args.items() if k in ['submit_app', 'submit_py_files', 'submit_jars', 'submit_files', 'inputs', 'outputs', 'arguments', 'wait', 'logs', 'job_name', 'experiment_config', 'configuration', 'spark_event_logs_s3_uri', 'kms_key']}
         return processor_args, run_args
@@ -281,21 +309,25 @@ class PySparkProcessorMagics(CommonProcessorMagics):
         super(PySparkProcessorMagics, self).__init__(shell)
         self.RuntimeClass = PySparkProcessor
 
+    def _get_config(self):
+        conf = super(PySparkProcessorMagics, self)._get_config()
+        return conf.get_config('pyspark')
+
     @magic_arguments()
-    @argument('method', type=str, choices=['submit', 'list', 'status', 'delete'])
+    @argument('method', type=str, choices=['submit', 'list', 'status', 'delete', 'show_defaults'])
     @argument_group(title='processor', description=None)
     @argument('--base_job_name', type=str, help='Prefix for processing name. If not specified, the processor generates a default job name, based on the training image name and current timestamp.')
     @argument('--submit_app', type=str, help='Path (local or S3) to Python file to submit to Spark as the primary application')
-    @argument('--framework_version', type=str, help='The version of SageMaker PySpark.', default='2.4')
-    @argument('--instance_type', type=str, help='Type of EC2 instance to use for processing, for example, ‘ml.c4.xlarge’.', default='ml.c4.xlarge')
-    @argument('--instance_count', type=int, help='Number of Amazon EC2 instances to use for processing.', default=1)
-    @argument('--max_runtime_in_seconds', type=int, help=' Timeout in seconds. After this amount of time Amazon SageMaker terminates the job regardless of its current status.', default=1200)
+    @argument('--framework_version', type=str, help='The version of SageMaker PySpark.')
+    @argument('--instance_type', type=str, help='Type of EC2 instance to use for processing, for example, ‘ml.c4.xlarge’.')
+    @argument('--instance_count', type=int, help='Number of Amazon EC2 instances to use for processing.')
+    @argument('--max_runtime_in_seconds', type=int, help=' Timeout in seconds. After this amount of time Amazon SageMaker terminates the job regardless of its current status.')
     @argument('--submit_py_files', type=str, nargs='*', help='You can specify any python dependencies or files that your script depends on ')
     @argument('--submit_jars', type=str, nargs='*', help='You can specify any jar dependencies or files that your script depends on ')
     @argument('--submit_files', type=str, nargs='*', help='List of .zip, .egg, or .py files to place on the PYTHONPATH for Python apps.')
     @argument('--arguments', type=arguments, help='A list of string arguments to be passed to a processing job', metavar="\'--foo bar --baz 123\'")
     @argument('--spark_event_logs_s3_uri', type=str, help='S3 path where spark application events will be published to.')
-    @argument('--logs', type=bool, help='Whether to show the logs produced by the job.', default=False, nargs='?', const=True)
+    @argument('--logs', type=bool, help='Whether to show the logs produced by the job.', nargs='?', const=True)
     @argument_group(title='list', description=None)
     @argument('--name_contains', type=str, help='', default='spark')
     @argument('--max_result', type=str, help='', default=10)
