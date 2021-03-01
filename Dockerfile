@@ -1,5 +1,6 @@
 FROM jupyter/minimal-notebook:latest
 
+ENV DEFAULT_SM_CONFIG_PATH=/usr/local/share/extensions/jupyter_ext/sage_maker_kernel/default.conf
 
 USER root
 RUN apt-get update && \
@@ -13,6 +14,7 @@ RUN curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2
 RUN ./aws/install
 
 COPY sage_maker_magic /usr/local/share/extensions/jupyter_ext
+COPY config/default.conf ${DEFAULT_SM_CONFIG_PATH}
 RUN chown -R $NB_UID /usr/local/share/extensions
 
 USER $NB_UID
