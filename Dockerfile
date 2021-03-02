@@ -27,6 +27,11 @@ RUN pip install \
         'smdebug>=0.9,<0.10' \
         'jupyter-console'
 
+# Install scikit-learn
+# For uploading a sample of the classic Iris dataset, which is included with Scikit-learn.
+# Which we're using for the purposes as an example.
+RUN pip install -U scikit-learn
+
 # Install custom kernels
 RUN cd /usr/local/share/extensions/jupyter_ext && \
     python setup.py install && \
