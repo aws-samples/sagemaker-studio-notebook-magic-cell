@@ -66,7 +66,23 @@ Currently the functions supported are the following.
                {submit,list,status,delete,show_defaults}
 ```
 
-
+# Scikit learn magic command
+```
+ %sklearn [--estimator_name ESTIMATOR_NAME] [--entry_point ENTRY_POINT]
+               [--source_dir SOURCE_DIR] [--role ROLE]
+               [--framework_version FRAMEWORK_VERSION]
+               [--py_version PY_VERSION] [--instance_type INSTANCE_TYPE]
+               [--instance_count INSTANCE_COUNT] [--output_path OUTPUT_PATH]
+               [--hyperparameters FOO:1,BAR:0.555,BAZ:ABC | 'FOO : 1, BAR : 0.555, BAZ : ABC']
+               [--channel_training CHANNEL_TRAINING]
+               [--channel_testing CHANNEL_TESTING]
+               [--use_spot_instances [USE_SPOT_INSTANCES]]
+               [--max_wait MAX_WAIT]
+               [--enable_sagemaker_metrics [ENABLE_SAGEMAKER_METRICS]]
+               [--metric_definitions ['Name: loss, Regex: Loss = .*?);' ['Name: loss, Regex: Loss = (.*?;' ...]]]
+               [--name_contains NAME_CONTAINS] [--max_result MAX_RESULT]
+               {submit,list,status,logs,delete,show_defaults}
+```
 
 
 # Building the image
